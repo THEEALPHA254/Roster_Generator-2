@@ -4,7 +4,7 @@ from .models import Member, Role, Roster
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
-        fields = ['name']
+        fields = ['id','name']
 
 class MemberSerializer(serializers.ModelSerializer):
     roles = serializers.CharField(source='roles.name', read_only=True)  # Display role as a string

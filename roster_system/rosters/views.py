@@ -1,5 +1,6 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.exceptions import NotFound
 from .models import Member, Role, Roster
 from .serializers import MemberSerializer, RoleSerializer, RosterSerializer
 from django.db.models import Count
@@ -16,14 +17,20 @@ class MemberViewSet(viewsets.ModelViewSet):
     serializer_class = MemberSerializer
 
     def create(self, request, *args, **kwargs):
-        role_id = request.data.get('roles')
-        role = Role.objects.get(id=role_id)
+        role_id = request.data.get('role')
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist:
+            return Response({"error": "Role not found"}, status=status.HTTP_404_NOT_FOUND)
+        
         member = Member.objects.create(
             name=request.data.get('name'),
             age=request.data.get('age'),
-            contact=request.data.get('contact'),
-            roles=role
+            contact=request.data.get('contact')
         )
+        member.roles.add(role)
+        member.save()
+        
         serializer = self.get_serializer(member)
         return Response(serializer.data)
 
