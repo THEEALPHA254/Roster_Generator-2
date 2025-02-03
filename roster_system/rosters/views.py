@@ -5,16 +5,24 @@ from .models import Member, Role, Roster
 from .serializers import MemberSerializer, RoleSerializer, RosterSerializer
 from django.db.models import Count
 from datetime import datetime, timedelta
+from rest_framework.pagination import PageNumberPagination
 
 # Viewset for Role
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
 
+# Custom pagination class
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 # Viewset for Member
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all()
     serializer_class = MemberSerializer
+    pagination_class = StandardResultsSetPagination  # Use custom pagination class
 
     def create(self, request, *args, **kwargs):
         role_id = request.data.get('role')
