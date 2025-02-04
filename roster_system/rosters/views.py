@@ -3,14 +3,9 @@ from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
 from .models import Member, Role, Roster
 from .serializers import MemberSerializer, RoleSerializer, RosterSerializer
-from django.db.models import Count
+from django.db.models import Count, Q
 from datetime import datetime, timedelta
 from rest_framework.pagination import PageNumberPagination
-
-# Viewset for Role
-class RoleViewSet(viewsets.ModelViewSet):
-    queryset = Role.objects.all()
-    serializer_class = RoleSerializer
 
 # Custom pagination class
 class StandardResultsSetPagination(PageNumberPagination):
@@ -18,29 +13,45 @@ class StandardResultsSetPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
+# Viewset for Role
+class RoleViewSet(viewsets.ModelViewSet):
+    queryset = Role.objects.all()
+    serializer_class = RoleSerializer
+    pagination_class = StandardResultsSetPagination #use custom pagination
+    
+
 # Viewset for Member
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all()
     serializer_class = MemberSerializer
     pagination_class = StandardResultsSetPagination  # Use custom pagination class
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(Q(name__icontains=search))
+        return queryset
+
     def create(self, request, *args, **kwargs):
-        role_id = request.data.get('role')
+        role_id = request.data.get('role')  # Make sure the frontend sends "role" (not "roles")
+        
         try:
             role = Role.objects.get(id=role_id)
         except Role.DoesNotExist:
             return Response({"error": "Role not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
+        # Create the member and assign the role
         member = Member.objects.create(
             name=request.data.get('name'),
             age=request.data.get('age'),
-            contact=request.data.get('contact')
+            contact=request.data.get('contact'),
+            roles=role  # ✅ Assign directly since it's a ForeignKey
         )
-        member.roles.add(role)
-        member.save()
-        
+
         serializer = self.get_serializer(member)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 # Custom Viewset for generating and displaying roster
 class RosterViewSet(viewsets.ViewSet):
